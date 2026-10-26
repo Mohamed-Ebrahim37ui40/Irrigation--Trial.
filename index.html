@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>تجربة الري | Irrigation Trial</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="theme-color" content="#2E7D32" />
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <h1 data-i18n="appTitle">تجربة الري</h1>
+        <div class="credit">
+          <img src="icon-192.png" alt="Firmino Logo" class="logo" />
+          <span data-i18n="designerCredit">تصميم مهندس محمد إبراهيم (فرمينو)</span>
+        </div>
+      </div>
+      <div class="controls-bar">
+        <button class="btn btn-outline" id="themeBtn" onclick="toggleTheme()">🌙</button>
+        <button class="btn btn-outline" onclick="toggleLanguage()">🌐 AR/EN</button>
+        <button class="btn btn-outline" onclick="clearAll()" data-i18n="clearAll">🗑️ مسح الكل</button>
+        <button class="btn btn-white" onclick="exportExcel()" data-i18n="exportExcel">📥 تصدير Excel</button>
+        <button class="btn btn-white" onclick="exportSVG()" data-i18n="exportSVG">🖼️ حفظ SVG</button>
+        <button class="btn btn-green" onclick="shareWhatsApp()" data-i18n="whatsappShare">📱 واتساب</button>
+      </div>
+    </header>
+
+    <!-- Pivot Manager Section -->
+    <div class="card">
+      <h2 data-i18n="pivotManagement">📂 إدارة البيفوتات (محفوظة محلياً)</h2>
+      <div class="pivot-manager">
+        <div class="pivot-list" id="pivotChipsContainer"></div>
+        <button class="btn btn-green btn-sm" onclick="addNewPivot()" data-i18n="addPivot">➕ إضافة بيفوت جديد</button>
+      </div>
+    </div>
+
+    <!-- Parameters Section -->
+    <div class="card">
+      <h2 data-i18n="parameters">⚙️ المعاملات</h2>
+      <div class="params">
+        <div class="pg">
+          <label data-i18n="dishRadius">نصف قطر الطبق (م)</label>
+          <input type="number" id="radius" value="17.5" min="0.1" step="0.1" oninput="recalc()" />
+        </div>
+        <div class="pg">
+          <label data-i18n="c1Constant">ثابت التحويل C1</label>
+          <div class="calc" id="c1">96.21</div>
+        </div>
+        <div class="pg">
+          <label data-i18n="areaFeddan">المساحة (فدان)</label>
+          <input type="number" id="area" value="125" min="0" step="0.1" oninput="recalc()" />
+        </div>
+        <div class="pg">
+          <label data-i18n="irrigationHours">ساعات الري</label>
+          <input type="number" id="hours" value="10" min="0" step="0.1" oninput="recalc()" />
+        </div>
+        <div class="pg">
+          <label data-i18n="feddanPerHour">أفدنة / ساعة</label>
+          <div class="calc" id="feddanPH">12.50</div>
+        </div>
+        <div class="pg">
+          <label data-i18n="flowRate">التدفق M³/H</label>
+          <div class="calc" id="flow">525.00</div>
+        </div>
+        <div class="pg">
+          <label data-i18n="date">التاريخ</label>
+          <input type="date" id="date" value="2026-10-09" onchange="syncCurrentPivotData()" />
+        </div>
+        <div class="pg">
+          <label data-i18n="pivotName">اسم البيفوت</label>
+          <input type="text" id="pivotName" value="P 16" oninput="syncCurrentPivotData()" />
+        </div>
+        <div class="pg">
+          <label data-i18n="overallAvg">متوسط كلي (مم)</label>
+          <div class="calc" id="overallAvg">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Entry -->
+    <div class="card">
+      <h2 data-i18n="readingsHeader">📝 إدخال القراءات (8 لكل عجلة — End: 4)</h2>
+      <div class="tabs" id="tabs"></div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+        <button class="btn btn-green btn-sm" onclick="addReading()" data-i18n="addReading">➕ قراءة</button>
+        <button class="btn btn-sm" style="background:var(--calc);color:var(--text);" onclick="addMany(3)" data-i18n="add3Readings">➕ 3 قراءات</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:50px">#</th>
+              <th>MM</th>
+              <th>محسوب (مم)</th>
+              <th style="width:70px">حذف</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Summary + Chart -->
+    <div class="card">
+      <h2 data-i18n="summaryTitle">📊 الملخص والمنحنى</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="wheel">العجلة</th>
+              <th data-i18n="count">عدد</th>
+              <th data-i18n="average">متوسط</th>
+              <th data-i18n="stdDev">انحراف</th>
+              <th data-i18n="min">أدنى</th>
+              <th data-i18n="max">أقصى</th>
+              <th>DIV</th>
+            </tr>
+          </thead>
+          <tbody id="sumBody"></tbody>
+        </table>
+      </div>
+      <div class="chart-box"><canvas id="chart"></canvas></div>
+    </div>
+
+    <!-- Contact Developer Section -->
+    <div class="contact-section">
+      <h3 data-i18n="contactTitle">بيانات التواصل والمطور</h3>
+      <p class="subtitle" data-i18n="contactSubtitle">اضغط على أي وسيلة للتواصل المباشر عبر التطبيقات الرسمية</p>
+      <div class="contact-grid">
+        <a href="mailto:mohamed.ibrahim11617@gmail.com" class="contact-item">
+          <span class="icon">📧</span>
+          <span>Gmail</span>
+        </a>
+        <a href="https://www.linkedin.com/in/mohamed-ebrahim-771b0540a" target="_blank" class="contact-item">
+          <span class="icon">💼</span>
+          <span>LinkedIn</span>
+        </a>
+        <a href="https://www.facebook.com/share/1JHu4fGCXa/" target="_blank" class="contact-item">
+          <span class="icon">📘</span>
+          <span>Facebook</span>
+        </a>
+        <a href="https://x.com/Firmo13MH" target="_blank" class="contact-item">
+          <span class="icon">🐦</span>
+          <span>X (Twitter)</span>
+        </a>
+        <a href="https://wa.me/qr/QIZ446FGUAGGD1" target="_blank" class="contact-item">
+          <span class="icon">💬</span>
+          <span>WhatsApp</span>
+        </a>
+        <a href="https://t.me/FR6060ME" target="_blank" class="contact-item">
+          <span class="icon">✈️</span>
+          <span>Telegram</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
